@@ -26,5 +26,4 @@ class PostCreated extends Mailable
         return $this->subject('New Post Created')
                     ->text($this->emailContent);
     }
-
 }

@@ -22,7 +22,9 @@ class PostController extends Controller
         $authorId = auth()->id();
         $validatedData['author_id'] = $authorId;
         $post = Post::create($validatedData);
+        // SendPostNotification::dispatch($post, $request->content);
         SendPostNotification::dispatch($post, $request->content);
+
         return response()->json($post, HttpStatus::SUCCESS_CREATED);}
 
     /**
