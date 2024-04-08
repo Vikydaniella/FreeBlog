@@ -2,31 +2,32 @@
 
 namespace App\Jobs;
 
-use App\Mail\PostCreated;
 use App\Models\Post;
+use App\Mail\PostCreated;
 use Illuminate\Bus\Queueable;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Queue\SerializesModels;
+use App\Notifications\PostNotification;
+use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Mail;
 
 class SendPostNotification implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected $post;
-    protected $emailContent;
+    protected $user;
 
-    public function __construct(Post $post, $emailContent)
+    public function __construct($user, $post)
     {
+        $this->user = $user;
         $this->post = $post;
-        $this->emailContent = $emailContent;
+        
     }
 
     public function handle()
     {
-        Mail::to($this->post->author->email)
-            ->send(new PostCreated($this->post, $this->emailContent));
+        $this->user->notify(new PostNotification($this->post));
     }
 }

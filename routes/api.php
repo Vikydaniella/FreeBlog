@@ -6,7 +6,7 @@ use App\Http\Controllers\PostController;
 use Illuminate\Support\Facades\Route;
 
 
-Route::prefix('update')->group(function () {
+Route::prefix('freeblog')->group(function () {
     Route::post('login', [AuthController::class, 'login']);
     Route::post('register', [AuthController::class, 'register']);
     

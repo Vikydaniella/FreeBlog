@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Post;
+use App\Models\User;
+use App\Helpers\HttpStatus;
 use App\Http\Requests\PostRequest;
 use App\Jobs\SendPostNotification;
 use App\Http\Resources\PostResource;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use App\Models\Post;
-
 
 class PostController extends Controller
 {
@@ -18,14 +18,28 @@ class PostController extends Controller
     * @return \Illuminate\Http\JsonResponse
     */
     public function store(PostRequest $request)
-    {$validatedData = $request->validated();
-        $authorId = auth()->id();
-        $validatedData['author_id'] = $authorId;
-        $post = Post::create($validatedData);
-        // SendPostNotification::dispatch($post, $request->content);
-        SendPostNotification::dispatch($post, $request->content);
+    {
+        $post = Post::create([
+            'title' => $request->title,
+            'content' => $request->content,
+            'status' => $request->status,
+            'author_id' => $request->author_id
+            ]);
 
-        return response()->json($post, HttpStatus::SUCCESS_CREATED);}
+        if ($post) {
+            $user = User::find(1);
+            SendPostNotification::dispatch($user, $post);
+            return response()->json([
+                'status' => HttpStatus::SUCCESS_CREATED,
+                'message' => 'Post created Successfully',
+                'data' => $post
+            ]);
+        }  
+            return response()->json([
+                'status' => HttpStatus::UNPROCESSABLE_ENTITY,
+                'message' => 'Can not create post'
+            ]);
+    }
 
     /**
     * Display a listing of all posts.
@@ -44,8 +58,18 @@ class PostController extends Controller
     */
     public function show($id)
     {
-        $post = Post::findOrFail($id);
-        return new PostResource($post);
+        $post = Post::find($id);
+       if($post){
+        return response()->json([
+            'status' => HttpStatus::SUCCESS_CREATED,
+            'message' => 'Successful',
+            'data' => new PostResource($post)
+        ]);
+        }
+        return response()->json([
+            'status' => HttpStatus::UNPROCESSABLE_ENTITY,
+            'message' => 'Can not see this post'
+        ]);
     }
 
     /**
@@ -56,7 +80,17 @@ class PostController extends Controller
     public function dashboard()
     {
         $posts = Post::where('author_id', Auth::id())->get();
-        return response()->json(['posts' => $posts]);
+        if($posts){
+            return response()->json([
+                'status' => HttpStatus::SUCCESS_CREATED,
+                'message' => 'Successful',
+                'data' => ['posts' => $posts]
+            ]);
+            }
+            return response()->json([
+                'status' => HttpStatus::UNPROCESSABLE_ENTITY,
+                'message' => 'Can not see these post'
+            ]);
     }
 
     /**
@@ -65,15 +99,33 @@ class PostController extends Controller
     * @param  int  $id
     * @return \Illuminate\Http\JsonResponse|
     */
+         
     public function update(PostRequest $request, $id)
     {
-        $post = Post::findOrFail($id);
-        if ($post->author_id != Auth::id()) {
-            return response()->json(['error' => 'You are not authorized to edit this post.'], HttpStatus::UNPROCESSABLE_ENTITY);
+        $post = Post::find($id);
+        if (!$post) {
+            return response()->json([
+                'status' => HttpStatus::UNPROCESSABLE_ENTITY,
+                'message' => 'Post not found.'
+            ]);
         }
-        $validatedData = $request->validated();
-        $post->update($validatedData);
-        return new PostResource($post);
+        if ($post->author_id != Auth::id()) {
+            return response()->json([
+                'status' => HttpStatus::UNPROCESSABLE_ENTITY,
+                'message' => 'You are not authorized to edit this post.'
+            ]);
+        }
+        $post->update([
+            'title' => $request->title,
+            'content' => $request->content,
+            'status' => $request->status,
+            'author_id' => $request->author_id
+        ]);
+        return response()->json([
+            'status' => HttpStatus::SUCCESS_CREATED,
+            'message' => 'Post updated successfully',
+            'data' => new PostResource($post)
+        ]);
     }
 
     /**
@@ -81,14 +133,26 @@ class PostController extends Controller
     * @param  int  $id
     * @return \Illuminate\Http\JsonResponse
     */
-    public function destroy($id)
-    {
-        $post = Post::findOrFail($id);
-
+    public function destroy(Post $post, $id)
+{
+        $post = Post::find($id);
+        if (!$post) {
+            return response()->json([
+                'status' => HttpStatus::UNPROCESSABLE_ENTITY,
+                'message' => 'Post not found.'
+            ]);
+        }
         if ($post->author_id != Auth::id() || $post->status != 'draft') {
-            return response()->json(['error' => 'You are not authorized to delete this post.'], HttpStatus::UNPROCESSABLE_ENTITY);
+            return response()->json([
+                'status' => HttpStatus::UNPROCESSABLE_ENTITY,
+                'message' => 'You are not authorized to delete this post or the post is not in draft status.'
+            ]);
         }
         $post->delete();
-        return response()->json(['message' => 'Post deleted successfully.'], HttpStatus::SUCCESS_CREATED);
-    }
+
+        return response()->json([
+            'status' => HttpStatus::SUCCESS_CREATED,
+            'message' => 'Post deleted successfully'
+        ]);
+}
 }
